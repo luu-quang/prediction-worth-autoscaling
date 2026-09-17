@@ -1,0 +1,12 @@
+project:
+  name: prediction-worth-autoscaling
+  seed: 42
+
+data:
+  plan: plan_b
+  dt_seconds: 300
+  warmup_hours: 2
+
+evaluation:
+  wdr_targets: [0.001, 0.005, 0.01, 0.02]
+  primary_test_days: [4, 5, 6, 7]

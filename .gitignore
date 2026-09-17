@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter / IDE / OS
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Raw data
+data/raw/*
+!data/raw/plan_a/
+!data/raw/plan_b/
+!data/raw/plan_a/.gitkeep
+!data/raw/plan_b/.gitkeep
+
+# Generated data
+data/interim/*
+data/processed/*
+
+# Results
+results/raw/*
+results/processed/*
+
+# Environment
+.env
+.env.*

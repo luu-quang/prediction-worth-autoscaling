@@ -1,0 +1,5 @@
+forecasting:
+  horizons_minutes: [5, 15, 30]
+  models: [persistence, ewma, autoregressive, lightgbm]
+  residual_convention: actual_minus_forecast
+  metrics: [mae, rmse]

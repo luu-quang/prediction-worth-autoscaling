@@ -8,3 +8,14 @@ ewma:
   # Not locked in docs/OPEN_DECISIONS_CLOSED.md; alpha is selected per (fold, horizon)
   # by minimizing RMSE on that fold's validation day only (never test).
   alpha_grid: [0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9]
+
+lightgbm:
+  # Not locked in docs/OPEN_DECISIONS_CLOSED.md. early_stopping_rounds uses the
+  # validation day only, per the locked §E2 rule (early stopping -> validation only).
+  rolling_windows: [6, 12]
+  early_stopping_rounds: 20
+  params:
+    n_estimators: 1000
+    learning_rate: 0.05
+    num_leaves: 15
+    min_child_samples: 20

@@ -1,0 +1,12 @@
+[project]
+name = "prediction-worth-autoscaling"
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

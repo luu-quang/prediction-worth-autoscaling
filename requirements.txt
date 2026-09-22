@@ -6,3 +6,4 @@ lightgbm>=4.3
 matplotlib>=3.8
 pyyaml>=6.0
 pytest>=8.0
+ruff>=0.6

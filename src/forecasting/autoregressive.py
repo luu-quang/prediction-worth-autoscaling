@@ -33,7 +33,9 @@ def _fit_model(
     return model
 
 
-def generate_autoregressive_forecasts(demand_df, horizons_steps, folds, lags=LAGS) -> pd.DataFrame:
+def generate_autoregressive_forecasts(
+    demand_df, horizons_steps, folds, lags=LAGS, split: str = "test"
+) -> pd.DataFrame:
     """Linear regression on lag features, fit per (fold, horizon) on train days only.
 
     Fitting uses only rows whose forecast origin t falls in the fold's train days
@@ -42,7 +44,15 @@ def generate_autoregressive_forecasts(demand_df, horizons_steps, folds, lags=LAG
     few rows can have their label (target = demand.shift(-horizon)) land on the
     following (validation) day; this is a normal walk-forward boundary effect, not
     test-day leakage, since the validation day is never the test day.
+
+    split="test" (default) exports the primary test-day rows. split="val" exports
+    the same fold's validation-day rows instead (Step 9 residual calibration),
+    using the same train-only-fit model (the model never trains on val, so val
+    residuals are a fairer out-of-sample estimate than EWMA's).
     """
+    if split not in ("test", "val"):
+        raise ValueError(f"split must be 'test' or 'val', got {split!r}")
+
     validate_demand_df(demand_df)
     demand_df = demand_df.sort_values("timestamp").reset_index(drop=True)
     day_index = assign_day_index(demand_df["timestamp"])
@@ -54,8 +64,9 @@ def generate_autoregressive_forecasts(demand_df, horizons_steps, folds, lags=LAG
         target = demand.shift(-horizon)  # D_{t+H} aligned at origin row t
         for fold in folds:
             train_mask = day_index.isin(fold.train_days)
+            val_mask = day_index == fold.val_day
             test_mask = day_index == fold.test_day
-            if not train_mask.any() or not test_mask.any():
+            if not train_mask.any() or not val_mask.any() or not test_mask.any():
                 continue
 
             try:
@@ -63,6 +74,7 @@ def generate_autoregressive_forecasts(demand_df, horizons_steps, folds, lags=LAG
             except ValueError as e:
                 raise ValueError(f"fold={fold.fold_id} horizon={horizon}: {e}") from e
 
+            export_mask = test_mask if split == "test" else val_mask
             valid_features = features.notna().all(axis=1)
             predictions_at_origin = pd.Series(np.nan, index=demand.index)
             predictions_at_origin.loc[valid_features] = model.predict(features.loc[valid_features])
@@ -71,9 +83,9 @@ def generate_autoregressive_forecasts(demand_df, horizons_steps, folds, lags=LAG
             rows.append(
                 pd.DataFrame(
                     {
-                        "timestamp": demand_df.loc[test_mask, "timestamp"],
-                        "actual_demand": demand_df.loc[test_mask, "demand"],
-                        "forecast_point": forecast_point.loc[test_mask],
+                        "timestamp": demand_df.loc[export_mask, "timestamp"],
+                        "actual_demand": demand_df.loc[export_mask, "demand"],
+                        "forecast_point": forecast_point.loc[export_mask],
                         "horizon_steps": horizon,
                         "fold_id": fold.fold_id,
                         "model_id": MODEL_ID,

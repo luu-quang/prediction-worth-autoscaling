@@ -19,3 +19,9 @@ lightgbm:
     learning_rate: 0.05
     num_leaves: 15
     min_child_samples: 20
+
+residual_quantiles:
+  # Not locked in docs/OPEN_DECISIONS_CLOSED.md; candidate tau grid for the
+  # forecast-aware policy's safety offset (§0/§I): safe_forecast = point + Q_tau(r).
+  # Computed from each fold's validation day only (never test), per Step 9.
+  tau_grid: [0.5, 0.75, 0.9, 0.95, 0.99]

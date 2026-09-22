@@ -11,13 +11,20 @@ def persistence_forecast(demand: pd.Series, horizon_steps: int) -> pd.Series:
     return demand.shift(horizon_steps)
 
 
-def generate_persistence_forecasts(demand_df, horizons_steps, folds) -> pd.DataFrame:
-    """Persistence forecasts for the primary test days, in the locked forecast schema.
+def generate_persistence_forecasts(
+    demand_df, horizons_steps, folds, split: str = "test"
+) -> pd.DataFrame:
+    """Persistence forecasts in the locked forecast schema.
 
-    Persistence has no parameters to fit, so only test-day rows are exported:
-    train/val days aren't needed to produce its forecasts, and the matched-WDR
-    comparison (T2) only consumes test-day forecasts.
+    split="test" (default) exports the primary test-day rows used for the
+    matched-WDR comparison (T2). split="val" exports the same fold's validation-day
+    rows instead, for residual-quantile calibration (Step 9). Persistence has no
+    parameters to fit, so which split is requested only changes which day's rows
+    get exported, not any model behavior.
     """
+    if split not in ("test", "val"):
+        raise ValueError(f"split must be 'test' or 'val', got {split!r}")
+
     validate_demand_df(demand_df)
     demand_df = demand_df.sort_values("timestamp").reset_index(drop=True)
     day_index = assign_day_index(demand_df["timestamp"])
@@ -26,7 +33,8 @@ def generate_persistence_forecasts(demand_df, horizons_steps, folds) -> pd.DataF
     for horizon in horizons_steps:
         forecast_point = persistence_forecast(demand_df["demand"], horizon)
         for fold in folds:
-            mask = day_index == fold.test_day
+            target_day = fold.test_day if split == "test" else fold.val_day
+            mask = day_index == target_day
             if not mask.any():
                 continue
             rows.append(

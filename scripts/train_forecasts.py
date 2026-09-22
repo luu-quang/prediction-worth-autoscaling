@@ -1,11 +1,12 @@
-"""Track A Steps 2-8: walk-forward folds, Persistence + EWMA + AR + LightGBM, MAE/RMSE.
+"""Track A Steps 2-9: folds, Persistence + EWMA + AR + LightGBM, MAE/RMSE, residual quantiles.
 
 Usage:
     python scripts/train_forecasts.py
 
 Reads data/processed/demand/demand.parquet (produced by prepare_data.py),
-exports data/processed/forecasts/{persistence,ewma,autoregressive,lightgbm}.parquet,
-and prints the MAE/RMSE summary per model/fold/horizon.
+exports data/processed/forecasts/{persistence,ewma,autoregressive,lightgbm}.parquet
+and data/processed/forecasts/residual_quantiles.parquet, and prints the MAE/RMSE
+summary per model/fold/horizon.
 """
 
 import sys
@@ -21,6 +22,7 @@ from src.forecasting.autoregressive import generate_autoregressive_forecasts
 from src.forecasting.ewma import generate_ewma_forecasts
 from src.forecasting.lightgbm_model import generate_lightgbm_forecasts
 from src.forecasting.persistence import generate_persistence_forecasts
+from src.forecasting.residual_quantiles import compute_all_residual_quantiles
 from src.metrics.forecast_metrics import summarize_forecast_errors
 from src.utils.config import horizons_to_steps, load_config
 
@@ -84,6 +86,19 @@ def main():
 
     summary = summarize_forecast_errors(pd.concat(forecast_dfs, ignore_index=True))
     print(summary.to_string(index=False))
+
+    tau_grid = forecasting_cfg.get("residual_quantiles", {}).get("tau_grid")
+    rq_kwargs = {"tau_grid": tuple(tau_grid)} if tau_grid else {}
+    quantiles_df = compute_all_residual_quantiles(
+        demand_df,
+        horizons_steps,
+        folds,
+        model_kwargs={"ewma": ewma_kwargs, "lightgbm": {**lgb_kwargs, "seed": seed}},
+        **rq_kwargs,
+    )
+    quantiles_path = out_dir / "residual_quantiles.parquet"
+    quantiles_df.to_parquet(quantiles_path, index=False)
+    print(f"Wrote {len(quantiles_df)} rows to {quantiles_path}")
 
 
 if __name__ == "__main__":

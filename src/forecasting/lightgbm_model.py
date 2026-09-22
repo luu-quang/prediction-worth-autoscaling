@@ -62,11 +62,20 @@ def generate_lightgbm_forecasts(
     rolling_windows=DEFAULT_ROLLING_WINDOWS,
     lgb_params: dict | None = None,
     early_stopping_rounds: int = DEFAULT_EARLY_STOPPING_ROUNDS,
+    split: str = "test",
 ) -> pd.DataFrame:
-    """LightGBM forecasts per test fold: fit on train days, early-stopped on the
-    validation day, predicted on the test day. No test-day information is ever
-    used to fit or select the model (§P).
+    """LightGBM forecasts: fit on train days, early-stopped on the validation day.
+
+    split="test" (default) exports the primary test-day rows. split="val" exports
+    the same fold's validation-day rows instead (Step 9 residual calibration) --
+    note early stopping already selected the tree count to minimize error on that
+    same validation day, so those residuals are somewhat optimistic, similar to
+    EWMA's alpha tuning. No test-day information is ever used to fit or select
+    the model (§P).
     """
+    if split not in ("test", "val"):
+        raise ValueError(f"split must be 'test' or 'val', got {split!r}")
+
     validate_demand_df(demand_df)
     demand_df = demand_df.sort_values("timestamp").reset_index(drop=True)
     day_index = assign_day_index(demand_df["timestamp"])
@@ -94,6 +103,7 @@ def generate_lightgbm_forecasts(
             except ValueError as e:
                 raise ValueError(f"fold={fold.fold_id} horizon={horizon}: {e}") from e
 
+            export_mask = test_mask if split == "test" else val_mask
             valid_features = features.notna().all(axis=1)
             predictions_at_origin = pd.Series(np.nan, index=demand.index)
             predictions_at_origin.loc[valid_features] = model.predict(features.loc[valid_features])
@@ -102,9 +112,9 @@ def generate_lightgbm_forecasts(
             rows.append(
                 pd.DataFrame(
                     {
-                        "timestamp": demand_df.loc[test_mask, "timestamp"],
-                        "actual_demand": demand_df.loc[test_mask, "demand"],
-                        "forecast_point": forecast_point.loc[test_mask],
+                        "timestamp": demand_df.loc[export_mask, "timestamp"],
+                        "actual_demand": demand_df.loc[export_mask, "demand"],
+                        "forecast_point": forecast_point.loc[export_mask],
                         "horizon_steps": horizon,
                         "fold_id": fold.fold_id,
                         "model_id": MODEL_ID,

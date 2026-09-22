@@ -3,3 +3,8 @@ forecasting:
   models: [persistence, ewma, autoregressive, lightgbm]
   residual_convention: actual_minus_forecast
   metrics: [mae, rmse]
+
+ewma:
+  # Not locked in docs/OPEN_DECISIONS_CLOSED.md; alpha is selected per (fold, horizon)
+  # by minimizing RMSE on that fold's validation day only (never test).
+  alpha_grid: [0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9]
